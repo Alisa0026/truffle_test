@@ -1,45 +1,64 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
+// SPDX-License-Identifier: GPL-3.0
 
-// 证书合约
+pragma solidity >=0.7.0 <0.9.0;
+
 contract CertificateRegistry {
     struct Certificate {
-        string name;
-        string id;
-        uint256 score;
-        uint256 timestamp;
+        string CertNumber;
+        string UserName;
+        uint256 Score;
+        uint256 Time;
     }
 
-    // Mapping from user ID to Certificate
+    event issueCertificateEvent(string indexed certNumber, string indexed userName, uint256 score, uint256 time);
+
     mapping(string => Certificate) private certificates;
+    string[] private certNumbers=["1"];
 
-    event CertificateIssued(string indexed id, string name, uint256 score, uint256 timestamp);
+    function issueCertificate(string memory certNumber, string memory userName, uint256 score, uint256 time) public {
+        require(!stringsEquals(certNumber, ""), "Certificate number cannot be null");
+        require(!stringsEquals(userName, ""), "User name cannot be null");
+        require(!certificateExists(certNumber), "Certificate with this number already exists");
 
-    // Function to issue a certificate
-    function issueCertificate(string memory name, string memory id, uint256 score) public {
-        require(bytes(id).length > 0, "ID cannot be empty");
-        require(bytes(name).length > 0, "Name cannot be empty");
-        require(score >= 0, "Score must be non-negative");
-        require(bytes(certificates[id].id).length == 0, "Certificate already exists");
+        certificates[certNumber] = Certificate({
+            CertNumber: certNumber,
+            UserName: userName,
+            Score: score,
+            Time: time
+        });
 
-        certificates[id] = Certificate(name, id, score, block.timestamp);
-        emit CertificateIssued(id, name, score, block.timestamp);
+        certNumbers.push(certNumber);
+
+        emit issueCertificateEvent(certNumber, userName, score, time);
     }
 
-    // Function to get a certificate by user ID
-    function getCertificateById(string memory id) public view returns (string memory, string memory, uint256, uint256) {
-        require(bytes(certificates[id].id).length > 0, "Certificate not found");
-
-        Certificate memory cert = certificates[id];
-        return (cert.name, cert.id, cert.score, cert.timestamp);
+    function findByCertNumber(string memory certNumber) public view returns (string memory, string memory, uint256, uint256) {
+        Certificate memory cert = certificates[certNumber];
+        require(cert.Time != 0, "Certificate not found");
+        return (cert.CertNumber, cert.UserName, cert.Score, cert.Time);
     }
 
-    // Function to verify a certificate by user ID and name
-    function verifyCertificate(string memory id, string memory name) public view returns (bool) {
-        Certificate memory cert = certificates[id];
-        if (keccak256(abi.encodePacked(cert.name)) == keccak256(abi.encodePacked(name)) && keccak256(abi.encodePacked(cert.id)) == keccak256(abi.encodePacked(id))) {
-            return true;
+    function verifyCertificate(string memory certNumber, string memory userName) public view returns (bool) {
+        Certificate memory cert = certificates[certNumber];
+        return (cert.Time != 0 && stringsEquals(cert.UserName, userName));
+    }
+
+    function getAllCertNumbers() external view returns (string[] memory) {
+        return certNumbers;
+    }
+
+    function stringsEquals(string memory s1, string memory s2) private pure returns (bool) {
+        bytes memory b1 = bytes(s1);
+        bytes memory b2 = bytes(s2);
+        uint256 l1 = b1.length;
+        if (l1 != b2.length) return false;
+        for (uint256 i = 0; i < l1; i++) {
+            if (b1[i] != b2[i]) return false;
         }
-        return false;
+        return true;
     }
+    function certificateExists(string memory certNumber) private view returns (bool) {
+        return certificates[certNumber].Time != 0;
+    }
+
 }
